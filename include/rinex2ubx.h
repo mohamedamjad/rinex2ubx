@@ -6,11 +6,15 @@
 #include <math.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 // Constantes geodesiques
 #define a_WGS84 (6378137.00)
 #define b_WGS84 (6356752.30)
 #define f_WGS84 (1.0/298.257223563)
 #define PI (3.141592653589793)
+
+// autres constantes
+#define SECONDS_IN_WEEK 604800
 
 // Message class
 #define RXM 0x02
