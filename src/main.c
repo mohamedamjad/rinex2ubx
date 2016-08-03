@@ -28,12 +28,12 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
   now.tm_zone = "UTC";
   now.tm_isdst = 0;
 
-  // calculer la différence entre les deux dates et ajouter les leap seconds
+  // calculer la différence entre les deux dates
   seconds = (time_t)mktime(&now) - (time_t)mktime(&origin);
   printf("Les secondes GPS: %d", seconds);
   // calculer la semaine gps
   *week = seconds / SECONDS_IN_WEEK;
-  *iToW = seconds % SECONDS_IN_WEEK;
+  *iToW = (seconds % SECONDS_IN_WEEK)*1000;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -42,9 +42,10 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   size_t len = 0;
-  char *line;
+  char *line, tmp_string[3];
   ssize_t read;
-  int week, iToW;
+  int week, iToW, year, month, day, hour, minute;
+  float sec;
   
   // read header
   while((read = getline(&line, &len, rinex_file)) != -1){
@@ -57,10 +58,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   while((read = getline(&line, &len, rinex_file)) != -1){
     if(strstr(line,"G")){
       printf("%s",line);
-      
+      toiToW(2016, 1, 1, 0, 0, 0.0, &week, &iToW);
+      printf("week:%d, iToW:%d\n",week, iToW);
+      // split line
+      strncpy(tmp_string,line+1,2);
+      tmp_string[2] = '\0';
+      printf("EXTRACTED:%d\n",atoi(tmp_string));
     }
   }
-  
+
   fclose(rinex_file);
   fclose(ubx_file);
 }
