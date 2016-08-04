@@ -30,7 +30,6 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
   // calculer la différence entre les deux dates
   seconds = (time_t)mktime(&now) - (time_t)mktime(&origin);
-  printf("Les secondes GPS: %d", seconds);
   // calculer la semaine gps
   *week = seconds / SECONDS_IN_WEEK;
   *iToW = (seconds % SECONDS_IN_WEEK)*1000;
@@ -42,9 +41,9 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   size_t len = 0;
-  char *line, tmp_string[3];
+  char *line, tmp_string[11];
   ssize_t read;
-  int week, iToW, year, month, day, hour, minute;
+  int week, iToW, year, month, day, hour, minute, numSV;
   float sec;
   
   // read header
@@ -54,19 +53,48 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       break;
     }
   }
+
   // read data
   while((read = getline(&line, &len, rinex_file)) != -1){
-    if(strstr(line,"G")){
+    if(strstr(line,"G") && strncmp("       ",line,7)<0){
       printf("%s",line);
-      toiToW(2016, 1, 1, 0, 0, 0.0, &week, &iToW);
-      printf("week:%d, iToW:%d\n",week, iToW);
-      // split line
+      //toiToW(2016, 1, 1, 0, 0, 0.0, &week, &iToW);
+      //printf("week:%d, iToW:%d\n",week, iToW);
+
+      // split line epoch header line
+      // get date/hour infos
       strncpy(tmp_string,line+1,2);
       tmp_string[2] = '\0';
-      printf("EXTRACTED:%d\n",atoi(tmp_string));
+      year = atoi(tmp_string);
+
+      strncpy(tmp_string,line+4,2);      
+      month = atoi(tmp_string);
+
+      strncpy(tmp_string,line+7,2);
+      day = atoi(tmp_string);
+
+      strncpy(tmp_string,line+10,2);
+      hour = atoi(tmp_string);
+
+      strncpy(tmp_string,line+13,2);
+      minute = atoi(tmp_string);
+
+      strncpy(tmp_string,line+16,10);
+      sec = atof(tmp_string);
+
+      toiToW(2000+year, month, day, hour, minute, sec, &week, &iToW);
+      printf("WEEK:%d SEC:%d\n", week, iToW);
+
+      // Sat number
+      strncpy(tmp_string,line+30,2);
+      tmp_string[2] = '\0';
+      numSV  = atoi(tmp_string);
+      printf("numSV=%d\n",numSV);
+      
+      // Repeat block for every SV
+      
     }
   }
-
   fclose(rinex_file);
   fclose(ubx_file);
 }
