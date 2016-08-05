@@ -67,7 +67,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       tmp_string[2] = '\0';
       year = atoi(tmp_string);
 
-      strncpy(tmp_string,line+4,2);      
+      strncpy(tmp_string,line+4,2);
       month = atoi(tmp_string);
 
       strncpy(tmp_string,line+7,2);
@@ -91,7 +91,25 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       numSV  = atoi(tmp_string);
       printf("numSV=%d\n",numSV);
       
+      
       // Repeat block for every SV
+      if(numSV > 12){
+        // loop for satellites from 0 to 12
+        for( int i=0; i<numSV; i++){
+          
+          
+        }
+        
+        // loop for satellites from 12
+      } else {
+        for(int i=0; i<12; i++){
+
+        }
+        // read next line
+        for(i=12; i<numSV; i++){
+          
+        }
+      }
       
     }
   }
