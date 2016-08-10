@@ -39,4 +39,7 @@ typedef struct{
     unsigned char checksum_B;
 }ubx_message, *pubx_message;
 
-
+// Observation message
+typedef struct{
+    int sv;
+}obs_message;

@@ -2,6 +2,14 @@
 
 
 /*--------------------------------------------------------------------------*/
+//                          Get L1/C1/D1/S1 positions                       //
+/*--------------------------------------------------------------------------*/
+void getObsPos(int *posL1, int *posC1, int *posD1,char *line){
+  char 
+
+}
+
+/*--------------------------------------------------------------------------*/
 //                          Date/Hour to week/iToW                          //
 /*--------------------------------------------------------------------------*/
 void toiToW(int year, int month, int day, int hour, int minute, float sec, int *week, int *iToW){
@@ -41,9 +49,10 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   size_t len = 0;
-  char *line, tmp_string[11];
+  char *line, tmp_string[37];
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
+  int sv;
   float sec;
   
   // read header
@@ -91,11 +100,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       numSV  = atoi(tmp_string);
       printf("numSV=%d\n",numSV);
       
+      strncpy(tmp_string, line+32, 36);
+      tmp_string[37] = 0;
+      printf("SATS: %s\n",tmp_string);
       
       // Repeat block for every SV
-      if(numSV > 12){
+      /*if(numSV > 12){
         // loop for satellites from 0 to 12
         for( int i=0; i<numSV; i++){
+          i++;
           
           
         }
@@ -103,13 +116,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
         // loop for satellites from 12
       } else {
         for(int i=0; i<12; i++){
+          i++;
+        }
 
-        }
         // read next line
-        for(i=12; i<numSV; i++){
-          
+        read = getline(&line, &len, rinex_file);
+        for(int i=12; i<numSV; i++){
+          i++;
         }
-      }
+      }*/
       
     }
   }
