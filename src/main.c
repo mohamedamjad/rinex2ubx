@@ -4,9 +4,17 @@
 /*--------------------------------------------------------------------------*/
 //                          Get L1/C1/D1/S1 positions                       //
 /*--------------------------------------------------------------------------*/
-void getObsPos(int *posL1, int *posC1, int *posD1,char *line){
-  char 
+void getObsPos(int *posL1, int *posC1, int *posD1, int *posS1,char *line){
+  char tmp_string[7];
+  int number_of_lines;
+  tmp_string[7] = 0;
 
+  strncpy(tmp_string, line, 6);
+  printf("Nombre d'observables: %d\n", atoi(tmp_string));
+  // Determine number of # / TYPE OF OBS lines
+  number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
+  printf("Nombre de lignes: %d\n", number_of_lines);
+  
 }
 
 /*--------------------------------------------------------------------------*/
@@ -53,11 +61,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
   int sv;
+  int posL1, posC1, posD1, posS1;
   float sec;
   
   // read header
   while((read = getline(&line, &len, rinex_file)) != -1){
     //printf("I read a line: %s\n", line);
+    if(strstr(line, "# / TYPES OF OBSERV")){
+      getObsPos(&posL1, &posC1, &posD1, &posS1, line);
+    }
     if(strstr(line, "END OF HEADER")){
       break;
     }
