@@ -1,10 +1,10 @@
 #include "rinex2ubx.h"
 
-
 /*--------------------------------------------------------------------------*/
 //                          Get L1/C1/D1/S1 positions                       //
 /*--------------------------------------------------------------------------*/
 void getObsPos(int *posL1, int *posC1, int *posD1, int *posS1,char *line){
+  printf("THELINE: %s\n",line);
   char tmp_string[7];
   int number_of_lines;
   tmp_string[7] = 0;
@@ -14,7 +14,23 @@ void getObsPos(int *posL1, int *posC1, int *posD1, int *posS1,char *line){
   // Determine number of # / TYPE OF OBS lines
   number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
   printf("Nombre de lignes: %d\n", number_of_lines);
-  
+  printf("OBSERVABLES : \n");
+  for( int i=0; i<number_of_lines; i++){
+    // Read a line after each loop cycle
+    for(int j = i*10; j < (i*10)+9; j++){
+      strncpy(tmp_string, line+6+j*6, 6);
+      tmp_string[7] = 0;
+      if(strstr(tmp_string, "L1")){
+        *posL1 = j+1;
+      }else if(strstr(tmp_string, "C1")){
+        *posC1 = j+1;
+      }else if(strstr(tmp_string, "D1")){
+        *posD1 = j+1;
+      }else if(strstr(tmp_string, "S1")){
+        *posS1 = j+1;
+      }
+    }
+  }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -57,7 +73,7 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   size_t len = 0;
-  char *line, tmp_string[37];
+  char *line, tmp_string[38];
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
   int sv;
@@ -69,6 +85,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
     //printf("I read a line: %s\n", line);
     if(strstr(line, "# / TYPES OF OBSERV")){
       getObsPos(&posL1, &posC1, &posD1, &posS1, line);
+      printf("Les positions de chaque observable:\nL1:%d\nC1:%d\nD1:%d\nS1:%d\n",posL1, posC1, posD1, posS1);
     }
     if(strstr(line, "END OF HEADER")){
       break;
