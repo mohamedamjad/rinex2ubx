@@ -1,12 +1,7 @@
 /* ------------------------------------------------------------------------*/
 //                                 includes                                //
 /*-------------------------------------------------------------------------*/
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
+
 // Constantes geodesiques
 #define a_WGS84 (6378137.00)
 #define b_WGS84 (6356752.30)
