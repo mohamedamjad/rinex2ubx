@@ -31,19 +31,18 @@ void logPrint(int type, const char *fmt, ...)
 /*--------------------------------------------------------------------------*/
 //                          Get L1/C1/D1/S1 positions                       //
 /*--------------------------------------------------------------------------*/
-void getObsPos(int *posL1, int *posC1, int *posD1, int *posS1,char *line){
+void getObsPos(int *number_of_lines, int *posL1, int *posC1, int *posD1, int *posS1,char *line){
   printf("THELINE: %s\n",line);
   char tmp_string[7];
-  int number_of_lines;
   tmp_string[7] = 0;
 
   strncpy(tmp_string, line, 6);
   printf("Nombre d'observables: %d\n", atoi(tmp_string));
   // Determine number of # / TYPE OF OBS lines
-  number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
-  printf("Nombre de lignes: %d\n", number_of_lines);
+  *number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
+  printf("Nombre de lignes: %d\n", *number_of_lines);
   printf("OBSERVABLES : \n");
-  for ( int i=0; i<number_of_lines; i++){
+  for ( int i=0; i<*number_of_lines; i++){
     // Read a line after each loop cycle
     for(int j = i*10; j < (i*10)+9; j++){
       strncpy(tmp_string, line+6+j*6, 6);
@@ -104,7 +103,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   char *line, tmp_string[38], tmp_short_string[4];
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
-  int sv;
+  int sv, number_of_lines;
   int posL1, posC1, posD1, posS1;
   float sec;
   
@@ -112,7 +111,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   while((read = getline(&line, &len, rinex_file)) != -1){
     //printf("I read a line: %s\n", line);
     if(strstr(line, "# / TYPES OF OBSERV")){
-      getObsPos(&posL1, &posC1, &posD1, &posS1, line);
+      getObsPos(&number_of_lines, &posL1, &posC1, &posD1, &posS1, line);
       printf("Les positions de chaque observable:\nL1:%d\nC1:%d\nD1:%d\nS1:%d\n",posL1, posC1, posD1, posS1);
     }
     if(strstr(line, "END OF HEADER")){
@@ -159,28 +158,35 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       
       strncpy(tmp_string, line+32, 36);
       tmp_string[36] = 0;
-      logPrint(1,"SATS: %s\n",tmp_string);
+      logPrint(4,"SATS: %s\n",tmp_string);
 
       // Repeat block for every SV
       if(numSV < 12){
         // loop for satellites from 0 to satellites number
         for( int i=0; i<numSV; i++){
           strncpy(tmp_short_string, tmp_string+i*3,3); // tmp_string contient les PRN des satellites
+          tmp_short_string[3] = 0;
           printf("DEBUG ");
-          
         }
         
         // loop for satellites from 12
       } else {
         for(int i=0; i<12; i++){
-          
+          strncpy(tmp_short_string, tmp_string+i*3, 3);
+          tmp_short_string[3] = 0;
+          printf("DEBUG :%s\n",tmp_short_string);
         }
 
         // read next line
         read = getline(&line, &len, rinex_file);
+
         printf("SATS2:%s\n", line);
+        
         for(int i=12; i<numSV; i++){
-          i++;
+          strncpy(tmp_short_string, line+32+(i-12)*3, 3);
+          tmp_short_string[3] = 0;
+          printf("DEBUG: %s\n", tmp_short_string);
+          
         }
       }
       
