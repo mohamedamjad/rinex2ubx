@@ -249,6 +249,24 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       numSV  = atoi(tmp_string);
       printf("numSV=%d\n",numSV);
       
+      ubx_msg.message_class = 0x02;
+      ubx_msg.message_class = 0x10;
+
+      ubx_msg.message_length[0] = (8+24*numSV) >> 0;
+      ubx_msg.message_length[1] = (8+24*numSV) >> 8;
+
+      ubx_msg.payload[0] = iToW >> 0;
+      ubx_msg.payload[1] = iToW >> 8;
+      ubx_msg.payload[2] = iToW >> 16;
+      ubx_msg.payload[3] = iToW >> 32;
+
+      ubx_msg.payload[4] = week >> 0;
+      ubx_msg.payload[5] = week >> 8;
+
+      ubx_msg.payload[6] = numSV >> 0;
+      
+      ubx_msg.payload[7] = 0x00;
+ 
       strncpy(tmp_string, line+32, 36);
       tmp_string[36] = 0;
       logPrint(4,"SATS: %s\n",tmp_string);
