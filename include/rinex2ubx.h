@@ -29,9 +29,9 @@ typedef struct{
     unsigned char message_class;
     unsigned char message_id;
     unsigned char message_length[2];
-    unsigned char payload[7000]; // taille maxi
-    unsigned char checksum_A;
-    unsigned char checksum_B;
+    unsigned char payload[4000]; // taille maxi
+    unsigned char checksum_a;
+    unsigned char checksum_b;
 }ubx_message, *pubx_message;
 
 // Observation message

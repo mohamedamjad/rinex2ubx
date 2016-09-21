@@ -12,6 +12,34 @@
 #define LOG_OBS 4
 
 int type_log = LOG_SAT;
+
+
+
+//***************************************************************************//
+//            Fonction pour le calcul du checksum                            //
+//***************************************************************************//
+void getCompleteChecksum(ubx_message *ptr_ubx){
+  // probleme dans cette fonction: les checksum sont variables
+  // Algorithme de Fletcher: voir page 86 de u-blox6 receiver description protocol
+  unsigned short int length = (ptr_ubx->message_length[1]<<8)|ptr_ubx->message_length[0];
+  ptr_ubx->checksum_a = 0x00;
+  ptr_ubx->checksum_b = 0x00;
+  ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->message_class;
+  ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
+  ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->message_id;
+  ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
+  ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->message_length[0];
+  ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
+  ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->message_length[1];
+  ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
+  for(int i=0; i<length; i++){
+    ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->payload[i];
+    ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
+  }
+  //checksum(ptr_ubx.id[0], ptr_ubx->checksum_a, ptr_ubx->checksum_b);
+}
+
+
 /*-------------------------------------------------------------------------*/
 //                            Log Debug function                            //
 /*--------------------------------------------------------------------------*/
@@ -99,6 +127,7 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 /*--------------------------------------------------------------------------*/
 
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
+  ubx_message ubx_msg;
   size_t len = 0;
   char *line, tmp_string[38], tmp_short_string[4];
   ssize_t read;
@@ -107,6 +136,10 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   int posL1, posC1, posD1, posS1;
   float sec;
   
+  ubx_msg.header[0] = 0xb5;
+  ubx_msg.header[1] = 0x62;
+  
+
   // read header
   while((read = getline(&line, &len, rinex_file)) != -1){
     //printf("I read a line: %s\n", line);
@@ -114,8 +147,11 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       getObsPos(&number_of_lines, &posL1, &posC1, &posD1, &posS1, line);
       printf("Les positions de chaque observable:\nL1:%d\nC1:%d\nD1:%d\nS1:%d\n",posL1, posC1, posD1, posS1);
     }
-    if(strstr(line, "END OF HEADER")){
+    else if(strstr(line, "END OF HEADER")){
       break;
+    }
+    else if(strstr(line, "APPROX POSITION XYZ")){
+      printf("%s\n",line);
     }
   }
 
@@ -147,8 +183,65 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       strncpy(tmp_string,line+16,10);
       sec = atof(tmp_string);
 
-      toiToW(2000+year, month, day, hour, minute, sec, &week, &iToW);
+      year += 2000;
+
+      toiToW(year, month, day, hour, minute, sec, &week, &iToW);
       printf("WEEK:%d SEC:%d\n", week, iToW);
+
+      // Write UTCTIME-MESSAGE
+      ubx_msg.message_class = 0x01;
+      ubx_msg.message_id = 0x21;
+      
+      ubx_msg.message_length[0] = 0x14;
+      ubx_msg.message_length[1] = 0x00;
+
+      // copy du iToW dans la mémoire
+      ubx_msg.payload[0] = iToW >> 0;
+      ubx_msg.payload[1] = iToW >> 8;
+      ubx_msg.payload[2] = iToW >> 16;
+      ubx_msg.payload[3] = iToW >> 24;
+      
+      // copy de Time Accuracy Estimate (dans ce cas on met 0)      
+      ubx_msg.payload[4] = 0x00;
+      ubx_msg.payload[5] = 0x00;
+      ubx_msg.payload[6] = 0x00;
+      ubx_msg.payload[7] = 0x00;
+
+      // copy de nanosec of sec
+      ubx_msg.payload[8] = 0x00;
+      ubx_msg.payload[9] = 0x00;
+      ubx_msg.payload[10] = 0x00;
+      ubx_msg.payload[11] = 0x00;
+
+      // copy of year
+      ubx_msg.payload[12] = year >> 0;
+      ubx_msg.payload[13] = year >> 8;
+
+      // copy of month
+      ubx_msg.payload[14] = month >> 0;
+
+      // copy of day
+      ubx_msg.payload[15] = day >> 0;
+
+      // copy of hour
+      ubx_msg.payload[16] = hour >> 0;
+
+      // copy of hour
+      ubx_msg.payload[17] = minute >> 0;
+
+      // copy of sec of minute
+      ubx_msg.payload[18] = (int) sec >> 0;
+
+      // set validity flag
+      ubx_msg.payload[19] = 7 >> 0;
+
+      getCompleteChecksum(&ubx_msg);
+
+      // Write UTC message in the file
+      fwrite( &ubx_msg, sizeof(unsigned char), 6, ubx_file );
+      fwrite( ubx_msg.payload, sizeof(unsigned char), 20, ubx_file );
+      fwrite( &(ubx_msg.checksum_a), sizeof(unsigned char), 1, ubx_file );
+      fwrite( &(ubx_msg.checksum_b), sizeof(unsigned char), 1, ubx_file );
 
       // Sat number
       strncpy(tmp_string,line+30,2);
@@ -167,6 +260,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
           strncpy(tmp_short_string, tmp_string+i*3,3); // tmp_string contient les PRN des satellites
           tmp_short_string[3] = 0;
           printf("DEBUG ");
+          
         }
         
         // loop for satellites from 12
@@ -188,6 +282,10 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
           printf("DEBUG: %s\n", tmp_short_string);
           
         }
+
+        // After reading all satellites
+        
+        
       }
       
     }
@@ -203,7 +301,7 @@ int main(int argc, char* argv[]){
 
   FILE *rinex_file, *ubx_file;
   rinex_file = fopen(argv[1], "r");
-  ubx_file = fopen(argv[2], "a");
+  ubx_file = fopen(argv[2], "ab");
 
   if(rinex_file != 0){
     rinex2ubx(rinex_file, ubx_file);
