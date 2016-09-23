@@ -139,11 +139,12 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   int sv, number_of_obs_lines;
   int posL1, posC1, posD1, posS1;
   float sec;
-  union L1{ 
+  double double_null = 0.0;
+  union L1{
     double ascii;
     unsigned char bin[8];
   }l1;
-  
+
   union C1{
     double ascii;
     unsigned char bin[8];
@@ -155,14 +156,14 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   }d1;
 
   union S1{
-    double ascii;
-    unsigned char bin[8];
+    int ascii;
+    unsigned char bin[4];
   }s1;
 
 
   ubx_msg.header[0] = 0xb5;
   ubx_msg.header[1] = 0x62;
-  
+
 
   // read header
   while((read = getline(&line, &len, rinex_file)) != -1){
@@ -215,7 +216,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       // Write UTCTIME-MESSAGE
       ubx_msg.message_class = 0x01;
       ubx_msg.message_id = 0x21;
-      
+
       ubx_msg.message_length[0] = 0x14;
       ubx_msg.message_length[1] = 0x00;
 
@@ -224,8 +225,8 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       ubx_msg.payload[1] = iToW >> 8;
       ubx_msg.payload[2] = iToW >> 16;
       ubx_msg.payload[3] = iToW >> 24;
-      
-      // copy de Time Accuracy Estimate (dans ce cas on met 0)      
+
+      // copy de Time Accuracy Estimate (dans ce cas on met 0)
       ubx_msg.payload[4] = 0x00;
       ubx_msg.payload[5] = 0x00;
       ubx_msg.payload[6] = 0x00;
@@ -272,9 +273,9 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       tmp_string[2] = '\0';
       numSV  = atoi(tmp_string);
       printf("numSV=%d\n",numSV);
-      
+
       ubx_msg.message_class = 0x02;
-      ubx_msg.message_class = 0x10;
+      ubx_msg.message_id = 0x10;
 
       ubx_msg.message_length[0] = (8+24*numSV) >> 0;
       ubx_msg.message_length[1] = (8+24*numSV) >> 8;
@@ -282,15 +283,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       ubx_msg.payload[0] = iToW >> 0;
       ubx_msg.payload[1] = iToW >> 8;
       ubx_msg.payload[2] = iToW >> 16;
-      ubx_msg.payload[3] = iToW >> 32;
+      ubx_msg.payload[3] = iToW >> 24;
 
       ubx_msg.payload[4] = week >> 0;
       ubx_msg.payload[5] = week >> 8;
 
       ubx_msg.payload[6] = numSV >> 0;
-      
-      ubx_msg.payload[7] = 0x00;
- 
+
+      ubx_msg.payload[7] = 0 >> 0;
+      fwrite( &ubx_msg, sizeof(unsigned char), 6, ubx_file);
       strncpy(tmp_string, line+32, 36);
       tmp_string[36] = 0;
       logPrint(4,"SATS: %s\n",tmp_string);
@@ -303,22 +304,72 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
           tmp_short_string[3] = 0;
           sv = atoi(strtok(tmp_short_string,"G"));
           printf("DEBUG sv: %d\n", sv);
-          printf("---------UN STALLITE %d-------------\n", sv);
+          printf("-----------UN STALLITE %d-------------\n", sv);
             for( int j = 0 ; j<number_of_obs_lines; j++ ){
               read = getline(&line, &len, rinex_file);
               printf("%s", line);
               for ( int k = 0 ; k<5; k++ ){
                 if ( ( posL1 -1 ) == j*5+k ){
+
                   strncpy(tmp_string, line+k*16, 14);
                   tmp_string [14] = 0;
                   l1.ascii = (double) atof(tmp_string);
-                  printf("L1 PARSED: %g\n", l1.ascii);
+                  printf("L1 PARSED: %.14g\n", l1.ascii);
+                  memcpy((ubx_msg.payload)+(8+24*numSV), &(l1.bin), 8);
+                  // lli
+                  strncpy(tmp_string, line+k*17, 1);
+                  tmp_string [1] =0;
+                  ubx_msg.payload [31+24*numSV] = atoi(tmp_string) >> 0;
+
+                } else if ( ( posC1 -1 ) == j*5+k ) {
+
+                  strncpy(tmp_string, line+k*16, 14);
+                  tmp_string [14] = 0;
+                  c1.ascii = (double) atof(tmp_string);
+                  printf("C1 PARSED: %.14g\n", c1.ascii);
+                  memcpy((ubx_msg.payload)+(16+24*numSV), &(l1.bin), 8);
+
+                } else if ( ( posD1 -1 ) == j*5+k ) {
+
+                  strncpy(tmp_string, line+k*16, 14);
+                  tmp_string [14] = 0;
+                  d1.ascii = (double) atof(tmp_string);
+                  printf("D1 PARSED: %.14g\n", d1.ascii);
+                  memcpy((ubx_msg.payload)+(24+24*numSV), &(d1.bin), 8);
+
+                } else if ( ( posS1 -1 ) == j*5+k ) {
+
+                  strncpy(tmp_string, line+k*16, 14);
+                  tmp_string [14] = 0;
+                  s1.ascii = (int) atof(tmp_string);
+                  printf("S1 PARSED: %d\n", s1.ascii);
+                  ubx_msg.payload [30 + 24*numSV] = s1.bin[0] ;
+
                 }
+                // if one of observations was not found in the RINEX file
+                if ( posD1 == 0 ) {
+                  memcpy(ubx_msg.payload + ( 24 + 24 * numSV ), &double_null, 8) ;
+                } if ( posS1 == 0 ) {
+                  memcpy(ubx_msg.payload + ( 30 + 24 * numSV ), &double_null, 8) ;
+                } if ( posL1 == 0 ) {
+                  memcpy(ubx_msg.payload + ( 8 + 24 * numSV ), &double_null, 8) ;
+                } if ( posC1 == 0 ) {
+                  memcpy(ubx_msg.payload + ( 16 + 24 * numSV ), &double_null, 8) ;
+                }
+                //write SV prn
+                ubx_msg.payload[28+24*numSV] = sv >> 0;
+
+                // mesQI
+                ubx_msg.payload[29+24*numSV] = 6 >> 0;
+
               }
+
             }
         }
-        
+        //fwrite( &ubx_msg, sizeof(unsigned char), 6+8+numSV*24, ubx_file);
+
         // loop for satellites from 12
+        //fwrite( &ubx_msg, sizeof(unsigned char), 6+8+numSV*24, ubx_file);
       } else {
         for(int i=0; i<12; i++){
           strncpy(tmp_short_string, tmp_string+i*3, 3);
@@ -330,18 +381,19 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
         read = getline(&line, &len, rinex_file);
 
         printf("SATS2:%s\n", line);
-        
+
         for(int i=12; i<numSV; i++){
           strncpy(tmp_short_string, line+32+(i-12)*3, 3);
           tmp_short_string[3] = 0;
           printf("DEBUG: %s\n", tmp_short_string);
-          
+
         }
         // After reading all satellites
-        
+
       }
-      
+
     }
+
   }
   fclose(rinex_file);
   fclose(ubx_file);
