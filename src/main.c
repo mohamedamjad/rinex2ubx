@@ -59,18 +59,22 @@ void logPrint(int type, const char *fmt, ...)
 /*--------------------------------------------------------------------------*/
 //                          Get L1/C1/D1/S1 positions                       //
 /*--------------------------------------------------------------------------*/
-void getObsPos(int *number_of_lines, int *posL1, int *posC1, int *posD1, int *posS1,char *line){
+void getObsPos(int *number_of_obs_lines, int *posL1, int *posC1, int *posD1, int *posS1,char *line){
   printf("THELINE: %s\n",line);
   char tmp_string[7];
   tmp_string[7] = 0;
+  int number_of_lines;
 
   strncpy(tmp_string, line, 6);
   printf("Nombre d'observables: %d\n", atoi(tmp_string));
   // Determine number of # / TYPE OF OBS lines
-  *number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
-  printf("Nombre de lignes: %d\n", *number_of_lines);
+  number_of_lines = (int) ceil((float)atoi(tmp_string)/9);
+  printf("Nombre de lignes: %d\n", number_of_lines);
   printf("OBSERVABLES : \n");
-  for ( int i=0; i<*number_of_lines; i++){
+  // Nombre de lignes d observations par satellite
+  *number_of_obs_lines = (int) ceil((float)atoi(tmp_string)/5);
+
+  for ( int i=0; i<number_of_lines; i++){
     // Read a line after each loop cycle
     for(int j = i*10; j < (i*10)+9; j++){
       strncpy(tmp_string, line+6+j*6, 6);
@@ -132,10 +136,30 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   char *line, tmp_string[38], tmp_short_string[4];
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
-  int sv, number_of_lines;
+  int sv, number_of_obs_lines;
   int posL1, posC1, posD1, posS1;
   float sec;
+  union L1{ 
+    double ascii;
+    unsigned char bin[8];
+  }l1;
   
+  union C1{
+    double ascii;
+    unsigned char bin[8];
+  }c1;
+
+  union D1{
+    double ascii;
+    unsigned char bin[8];
+  }d1;
+
+  union S1{
+    double ascii;
+    unsigned char bin[8];
+  }s1;
+
+
   ubx_msg.header[0] = 0xb5;
   ubx_msg.header[1] = 0x62;
   
@@ -144,7 +168,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   while((read = getline(&line, &len, rinex_file)) != -1){
     //printf("I read a line: %s\n", line);
     if(strstr(line, "# / TYPES OF OBSERV")){
-      getObsPos(&number_of_lines, &posL1, &posC1, &posD1, &posS1, line);
+      getObsPos(&number_of_obs_lines, &posL1, &posC1, &posD1, &posS1, line);
       printf("Les positions de chaque observable:\nL1:%d\nC1:%d\nD1:%d\nS1:%d\n",posL1, posC1, posD1, posS1);
     }
     else if(strstr(line, "END OF HEADER")){
@@ -277,8 +301,21 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
         for( int i=0; i<numSV; i++){
           strncpy(tmp_short_string, tmp_string+i*3,3); // tmp_string contient les PRN des satellites
           tmp_short_string[3] = 0;
-          printf("DEBUG ");
-          
+          sv = atoi(strtok(tmp_short_string,"G"));
+          printf("DEBUG sv: %d\n", sv);
+          printf("---------UN STALLITE %d-------------\n", sv);
+            for( int j = 0 ; j<number_of_obs_lines; j++ ){
+              read = getline(&line, &len, rinex_file);
+              printf("%s", line);
+              for ( int k = 0 ; k<5; k++ ){
+                if ( ( posL1 -1 ) == j*5+k ){
+                  strncpy(tmp_string, line+k*16, 14);
+                  tmp_string [14] = 0;
+                  l1.ascii = (double) atof(tmp_string);
+                  printf("L1 PARSED: %g\n", l1.ascii);
+                }
+              }
+            }
         }
         
         // loop for satellites from 12
@@ -300,9 +337,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
           printf("DEBUG: %s\n", tmp_short_string);
           
         }
-
         // After reading all satellites
-        
         
       }
       
