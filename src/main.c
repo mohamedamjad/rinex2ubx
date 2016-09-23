@@ -133,7 +133,7 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   ubx_message ubx_msg;
   size_t len = 0;
-  char *line, tmp_string[38], tmp_short_string[4];
+  char *line, tmp_string[38], tmp_string_2[38], tmp_short_string[4];
   ssize_t read;
   int week, iToW, year, month, day, hour, minute, numSV;
   int sv, number_of_obs_lines;
@@ -291,7 +291,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       ubx_msg.payload[6] = numSV >> 0;
 
       ubx_msg.payload[7] = 0 >> 0;
-      fwrite( &ubx_msg, sizeof(unsigned char), 6, ubx_file);
+      //fwrite( &ubx_msg, sizeof(unsigned char), 6, ubx_file);
       strncpy(tmp_string, line+32, 36);
       tmp_string[36] = 0;
       logPrint(4,"SATS: %s\n",tmp_string);
@@ -299,11 +299,12 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       // Repeat block for every SV
       if(numSV < 12){
         // loop for satellites from 0 to satellites number
+        strcpy(tmp_string_2, tmp_string); // tmp_string contient les PRN des satellites
         for( int i=0; i<numSV; i++){
-          strncpy(tmp_short_string, tmp_string+i*3,3); // tmp_string contient les PRN des satellites
+          strncpy(tmp_short_string, tmp_string_2+i*3,3);
           tmp_short_string[3] = 0;
           sv = atoi(strtok(tmp_short_string,"G"));
-          printf("DEBUG sv: %d\n", sv);
+          printf("DEBUG sv: %s\n", tmp_short_string);
           printf("-----------UN STALLITE %d-------------\n", sv);
             for( int j = 0 ; j<number_of_obs_lines; j++ ){
               read = getline(&line, &len, rinex_file);
@@ -327,7 +328,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
                   tmp_string [14] = 0;
                   c1.ascii = (double) atof(tmp_string);
                   printf("C1 PARSED: %.14g\n", c1.ascii);
-                  memcpy((ubx_msg.payload)+(16+24*numSV), &(l1.bin), 8);
+                  memcpy((ubx_msg.payload)+(16+24*numSV), &(c1.bin), 8);
 
                 } else if ( ( posD1 -1 ) == j*5+k ) {
 
@@ -335,7 +336,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
                   tmp_string [14] = 0;
                   d1.ascii = (double) atof(tmp_string);
                   printf("D1 PARSED: %.14g\n", d1.ascii);
-                  memcpy((ubx_msg.payload)+(24+24*numSV), &(d1.bin), 8);
+                  memcpy((ubx_msg.payload)+(24+24*numSV), &(d1.bin), 4);
 
                 } else if ( ( posS1 -1 ) == j*5+k ) {
 
@@ -366,7 +367,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
 
             }
         }
-        //fwrite( &ubx_msg, sizeof(unsigned char), 6+8+numSV*24, ubx_file);
+        fwrite( &ubx_msg, sizeof(unsigned char), 6+2+8+numSV*24, ubx_file);
 
         // loop for satellites from 12
         //fwrite( &ubx_msg, sizeof(unsigned char), 6+8+numSV*24, ubx_file);
