@@ -151,7 +151,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   }c1;
 
   union D1{
-    double ascii;
+    float ascii;
     unsigned char bin[4];
   }d1;
 
