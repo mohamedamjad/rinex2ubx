@@ -96,7 +96,7 @@ void getObsPos(int *number_of_obs_lines, int *posL1, int *posC1, int *posD1, int
 //                          Date/Hour to week/iToW                          //
 /*--------------------------------------------------------------------------*/
 void toiToW(int year, int month, int day, int hour, int minute, float sec, int *week, int *iToW){
-  int seconds;
+  time_t seconds;
 
   struct tm origin;
   origin.tm_sec = 0;
@@ -125,6 +125,40 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
   // calculer la semaine gps
   *week = seconds / SECONDS_IN_WEEK;
   *iToW = (seconds % SECONDS_IN_WEEK)*1000;
+}
+
+
+/*--------------------------------------------------------------------------*/
+//                          Date/Hour GPS to UTC                            //
+/*--------------------------------------------------------------------------*/
+void timeGPStoUTC ( int *year, int *month, int *day, int *hour, int *minute, float *sec, int leap_s )
+{
+
+  time_t seconds;
+
+
+  // La date qu'on veut calculer
+  struct tm now;
+  now.tm_sec = *sec;
+  now.tm_min = *minute;
+  now.tm_hour = *hour + 1;
+  now.tm_mday = *day;
+  now.tm_mon = *month;
+  now.tm_year = *year;
+  now.tm_zone = "UTC";
+  now.tm_isdst = 0;
+
+  // calculer la différence entre les deux dates
+  seconds = (time_t)mktime(&now) - (time_t)leap_s;
+
+  struct tm * utc_now = gmtime(&seconds);
+
+  *year = (int) utc_now->tm_year;
+  *month = utc_now->tm_mon;
+  *day = utc_now->tm_mday;
+  *hour = utc_now->tm_hour;
+  *minute = utc_now->tm_min;
+  *sec = utc_now->tm_sec;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -217,6 +251,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       year += 2000;
 
       toiToW(year, month, day, hour, minute, sec, &week, &iToW);
+      timeGPStoUTC(&year, &month, &day, &hour, &minute, &sec, leap_seconds);
       printf("WEEK:%d SEC:%d\n", week, iToW);
 
       // Write UTCTIME-MESSAGE
