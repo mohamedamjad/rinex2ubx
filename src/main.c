@@ -121,6 +121,7 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
   // calculer la différence entre les deux dates
   seconds = (time_t)mktime(&now) - (time_t)mktime(&origin);
+
   // calculer la semaine gps
   *week = seconds / SECONDS_IN_WEEK;
   *iToW = (seconds % SECONDS_IN_WEEK)*1000;
@@ -139,6 +140,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   int sv, number_of_obs_lines;
   int posL1, posC1, posD1, posS1;
   float sec;
+  int leap_seconds;
   double double_null = 0.0;
   union L1{
     double ascii;
@@ -172,6 +174,10 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       getObsPos(&number_of_obs_lines, &posL1, &posC1, &posD1, &posS1, line);
       printf("Les positions de chaque observable:\nL1:%d\nC1:%d\nD1:%d\nS1:%d\n",posL1, posC1, posD1, posS1);
     }
+    else if (strstr(line, "LEAP SECONDS")){
+      strncpy( tmp_string, line, 6 );
+      leap_seconds = atoi(tmp_string);
+    }
     else if(strstr(line, "END OF HEADER")){
       break;
     }
@@ -182,7 +188,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
 
   // read data
   while((read = getline(&line, &len, rinex_file)) != -1){
-    if(strstr(line,"G") && strncmp("       ",line,7)<0){
+    if( strstr(line,"G") && strncmp("       ",line,7) < 0 ){
       printf("%s",line);
       //toiToW(2016, 1, 1, 0, 0, 0.0, &week, &iToW);
       //printf("week:%d, iToW:%d\n",week, iToW);
@@ -300,6 +306,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       if(numSV < 12){
         // loop for satellites from 0 to satellites number
         strcpy(tmp_string_2, tmp_string); // tmp_string contient les PRN des satellites
+         // TODO: PROBLEM
         for( int i=0; i<numSV; i++){
           strncpy(tmp_short_string, tmp_string_2+i*3,3);
           tmp_short_string[3] = 0;
@@ -309,7 +316,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
             for( int j = 0 ; j<number_of_obs_lines; j++ ){
               read = getline(&line, &len, rinex_file);
               printf("%s", line);
-              for ( int k = 0 ; k<5; k++ ){
+              for ( int k = 0 ; k<(strlen(line)/14); k++ ){ // arreter la boucle avant si la ligne ne contient pas  5 obs
                 if ( ( posL1 -1 ) == j*5+k ){
 
                   strncpy(tmp_string, line+k*16, 14);
@@ -318,8 +325,6 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
                   printf("L1 PARSED: %.14g\n", l1.ascii);
                   memcpy((ubx_msg.payload)+(8+24*i), &(l1.bin), 8);
                   // lli
-                  //strncpy(tmp_string, line+k*15, 1);
-                  //tmp_string [1] =0;
                   if ( line[k+14] != ' ' ){
                     printf("LLI FLAG: %c\n", line[k+14]);
                     ubx_msg.payload [31+24*i] = line[k+14] - '0';
@@ -371,11 +376,15 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
               }
 
             }
-            fwrite( ubx_msg.payload + 8 , sizeof(unsigned char), 24*numSV, ubx_file);
-            getCompleteChecksum(&ubx_msg);
-            fwrite( &(ubx_msg.checksum_a) , sizeof(unsigned char), 2, ubx_file);
+            //fwrite( ubx_msg.payload + 8 , sizeof(unsigned char), 24*numSV, ubx_file);
+            //getCompleteChecksum(&ubx_msg);
+            //fwrite( &(ubx_msg.checksum_a) , sizeof(unsigned char), 2, ubx_file);
 
         }
+        fwrite( ubx_msg.payload + 8 , sizeof(unsigned char), 24*numSV, ubx_file);
+        getCompleteChecksum(&ubx_msg);
+        fwrite( &(ubx_msg.checksum_a) , sizeof(unsigned char), 2, ubx_file);
+
         // loop for satellites from 12
       } else {
         for(int i=0; i<12; i++){
