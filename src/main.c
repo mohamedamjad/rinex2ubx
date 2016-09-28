@@ -222,6 +222,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
 
   // read data
   while((read = getline(&line, &len, rinex_file)) != -1){
+    if( strstr(line, "COMMENT") != NULL || strstr(line, "                            4  ") != NULL ) continue;
     if( strstr(line,"G") && strncmp("       ",line,7) < 0 ){
       printf("%s",line);
       //toiToW(2016, 1, 1, 0, 0, 0.0, &week, &iToW);
@@ -247,6 +248,8 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
 
       strncpy(tmp_string,line+16,10);
       sec = atof(tmp_string);
+
+      if ( sec != 0.0 ) continue;
 
       year += 2000;
 
@@ -332,13 +335,13 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       ubx_msg.payload[6] = numSV >> 0;
 
       ubx_msg.payload[7] = 0 >> 0;
+      if ( numSV > 12 ) continue;
       fwrite( &ubx_msg, sizeof(unsigned char), 6 + 8, ubx_file);
       strncpy(tmp_string, line+32, 36);
       tmp_string[36] = 0;
       logPrint(4,"SATS: %s\n",tmp_string);
 
-      // Repeat block for every SV
-      if(numSV < 12){
+      if(numSV <= 12){
         // loop for satellites from 0 to satellites number
         strcpy(tmp_string_2, tmp_string); // tmp_string contient les PRN des satellites
          // TODO: PROBLEM
@@ -380,7 +383,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
                   strncpy(tmp_string, line+k*16, 14);
                   tmp_string [14] = 0;
                   d1.ascii = (double) atof(tmp_string);
-                  printf("D1 PARSED: %.14g\n", d1.ascii);
+                  printf("D1 PARSED: %g\n", d1.ascii);
                   memcpy((ubx_msg.payload)+(24+24*i), &(d1.bin), 4);
 
                 } else if ( ( posS1 -1 ) == j*5+k ) {
@@ -406,7 +409,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
                 ubx_msg.payload[28+24*i] = sv;
 
                 // mesQI
-                ubx_msg.payload[29+24*i] = 6;
+                ubx_msg.payload[29+24*i] = 7;
 
               }
 
