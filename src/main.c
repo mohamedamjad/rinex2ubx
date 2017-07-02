@@ -96,7 +96,10 @@ void getObsPos(int *number_of_obs_lines, int *posL1, int *posC1, int *posD1, int
 //                          Date/Hour to week/iToW                          //
 /*--------------------------------------------------------------------------*/
 void toiToW(int year, int month, int day, int hour, int minute, float sec, int *week, int *iToW){
+  int millisec;
   time_t seconds;
+
+  millisec = (int)((sec - (int)sec) * 1000);
 
   struct tm origin;
   origin.tm_sec = 0;
@@ -124,7 +127,7 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 
   // calculer la semaine gps
   *week = seconds / SECONDS_IN_WEEK;
-  *iToW = (seconds % SECONDS_IN_WEEK)*1000;
+  *iToW = (seconds % SECONDS_IN_WEEK)*1000+millisec;
 }
 
 
@@ -258,6 +261,7 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
       year += 2000;
 
       toiToW(year, month, day, hour, minute, sec, &week, &iToW);
+      printf("%d %d %d %d %d %f %d %d\n", year, month, day, hour, minute, sec, week, iToW);
       timeGPStoUTC(&year, &month, &day, &hour, &minute, &sec, leap_seconds);
       //printf("WEEK:%d SEC:%d\n", week, iToW);
 
