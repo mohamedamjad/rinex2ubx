@@ -13,13 +13,10 @@
 
 int type_log = LOG_SAT;
 
-
-
 //***************************************************************************//
 //            Fonction pour le calcul du checksum                            //
 //***************************************************************************//
 void getCompleteChecksum(ubx_message *ptr_ubx){
-  // probleme dans cette fonction: les checksum sont variables
   // Algorithme de Fletcher: voir page 86 de u-blox6 receiver description protocol
   unsigned short int length = (ptr_ubx->message_length[1]<<8)|ptr_ubx->message_length[0];
   ptr_ubx->checksum_a = 0x00;
@@ -36,7 +33,6 @@ void getCompleteChecksum(ubx_message *ptr_ubx){
     ptr_ubx->checksum_a = ptr_ubx->checksum_a + ptr_ubx->payload[i];
     ptr_ubx->checksum_b = ptr_ubx->checksum_b + ptr_ubx->checksum_a;
   }
-  //checksum(ptr_ubx.id[0], ptr_ubx->checksum_a, ptr_ubx->checksum_b);
 }
 
 
@@ -136,9 +132,8 @@ void toiToW(int year, int month, int day, int hour, int minute, float sec, int *
 /*--------------------------------------------------------------------------*/
 void timeGPStoUTC ( int *year, int *month, int *day, int *hour, int *minute, float *sec, int leap_s )
 {
-
+  float sec_floating_part;
   time_t seconds;
-
 
   // La date qu'on veut calculer
   struct tm now;
@@ -151,9 +146,11 @@ void timeGPStoUTC ( int *year, int *month, int *day, int *hour, int *minute, flo
   now.tm_zone = "UTC";
   now.tm_isdst = 0;
 
+  sec_floating_part = *sec - (int)*sec;
+
   // calculer la différence entre les deux dates
   seconds = (time_t)mktime(&now) - (time_t)leap_s;
-
+  
   struct tm * utc_now = gmtime(&seconds);
 
   *year = (int) utc_now->tm_year;
@@ -161,7 +158,8 @@ void timeGPStoUTC ( int *year, int *month, int *day, int *hour, int *minute, flo
   *day = utc_now->tm_mday;
   *hour = utc_now->tm_hour;
   *minute = utc_now->tm_min;
-  *sec = utc_now->tm_sec;
+  *sec = utc_now->tm_sec + sec_floating_part;
+  printf("sec: %g\n", *sec);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -224,8 +222,8 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
   }
   
   if (leap_seconds == 0){
-    leap_seconds = 17;
-    printf("missing leap seconds, using %d", leap_seconds);
+    leap_seconds = 18;
+    printf("missing leap seconds, using %d\n", leap_seconds);
   }
   // read data
   while((read = getline(&line, &len, rinex_file)) != -1){
@@ -262,7 +260,10 @@ void rinex2ubx(FILE *rinex_file, FILE *ubx_file){
 
       toiToW(year, month, day, hour, minute, sec, &week, &iToW);
       printf("%d %d %d %d %d %f %d %d\n", year, month, day, hour, minute, sec, week, iToW);
+      month--;
       timeGPStoUTC(&year, &month, &day, &hour, &minute, &sec, leap_seconds);
+      month++;
+      printf("AFTER timeGPStoUTC %d %d %d %d %d %f %d %d\n", year, month, day, hour, minute, sec, week, iToW);
       //printf("WEEK:%d SEC:%d\n", week, iToW);
 
       // Write UTCTIME-MESSAGE
